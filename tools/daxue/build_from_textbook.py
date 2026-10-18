@@ -6,16 +6,17 @@ import json, re
 
 PUNCT = '，。；：？！、'
 QUOTES = '「」『』《》'
+# 課本是古本章序，段號 ①–⑪ 依原書，一段一關；段名、主題是遊戲地圖上的標示
 CHAPTERS = {
-    '經一章': ('經一章', '三綱領八條目'),
-    '傳之首章': ('傳一章', '釋明明德'), '傳之二章': ('傳二章', '釋新民'),
-    '傳之三章': ('傳三章', '釋止於至善'), '傳之四章': ('傳四章', '釋本末'),
-    '傳之六章': ('傳六章', '釋誠意'),
-    '傳之七章': ('傳七章', '釋正心脩身'), '傳之八章': ('傳八章', '釋脩身齊家'),
-    '傳之九章': ('傳九章', '釋齊家治國'), '傳之十章': ('傳十章', '釋治國平天下'),
+    '①': ('第一段', '三綱領八條目'), '②': ('第二段', '誠意'),
+    '③': ('第三段', '道盛德至善'), '④': ('第四段', '明德・新民・止於至善・本末'),
+    '⑤': ('第五段', '正心脩身'), '⑥': ('第六段', '脩身齊家'),
+    '⑦': ('第七段', '齊家治國'), '⑧': ('第八段', '絜矩之道'),
+    '⑨': ('第九段', '得眾得國・德本財末'), '⑩': ('第十段', '仁人能愛人能惡人'),
+    '⑪': ('第十一段', '生財有大道・以義為利'),
 }
 # 拆關點：該句開頭文字
-SPLITS = {'傳十章': ['道得眾', '唯仁人放流之']}
+SPLITS: dict = {}
 # 太短的章併入前一章成同一關
 MERGE_INTO_PREV: set = set()
 RUBY = re.compile(r'<ruby>(.)<rt>([^<]*)</rt></ruby>')
@@ -70,11 +71,11 @@ for cname, theme, cl in chapters:
     parts = len(bounds) - 1
     for j in range(parts):
         label = cname + (['（上）', '（中）', '（下）'] if parts == 3 else ['（上）', '（下）'])[j] if parts > 1 else cname
-        stages.append({'id': f'daxue-{len(stages) + 1:02d}', 'chapter': cname, 'name': label,
+        stages.append({'id': f'daxue-b{len(stages) + 1:02d}', 'chapter': cname, 'name': label,
                        'theme': theme, 'clauses': cl[bounds[j]:bounds[j + 1]]})
 
 data = {'id': 'daxue', 'title': '大學',
-        'source': '讀經班課本（朱子《大學章句》經一章、傳十章正文）',
+        'source': '讀經班課本《學庸論語》讀經本（古本章序，段號 ①–⑪）',
         'note': '字形與注音照課本，引號與書名號省略',
         'stages': stages}
 json.dump(data, open('../../src/data/classics/daxue.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=1)

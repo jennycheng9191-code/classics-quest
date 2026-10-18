@@ -69,7 +69,7 @@ function Home({ go }: { go: (s: Screen) => void }) {
       <div className="hero">
         <div className="seal">讀經</div>
         <h1 className="hero-title">讀經闖關</h1>
-        <p className="hero-sub">一章一關，背熟了拿星星</p>
+        <p className="hero-sub">一段一關，背熟了拿星星</p>
       </div>
       <div className="stack">
         {BOOKS.map((b) => (
@@ -185,7 +185,7 @@ function MapView({ book, grade, peek, go, zhuyin, toggle }: {
           </section>
         </div>
       )}
-      {board && <BoardSheet book={book.id} grade={grade} onClose={() => setBoard(false)} />}
+      {board && <BoardSheet book={book.id} grade={grade} stages={book.stages.length} onClose={() => setBoard(false)} />}
     </>
   );
 }

@@ -25,7 +25,7 @@ export function BoardList({ top, me }: { top: Entry[] | null | "error"; me?: str
 }
 
 // 地圖上的「排行榜」按鈕打開的那張
-export function BoardSheet({ book, grade, onClose }: { book: string; grade: Grade; onClose: () => void }) {
+export function BoardSheet({ book, grade, stages, onClose }: { book: string; grade: Grade; stages: number; onClose: () => void }) {
   const [top, setTop] = useState<Entry[] | null | "error">(null);
   useEffect(() => {
     fetchTop(book, grade).then(setTop, () => setTop("error"));
@@ -34,7 +34,7 @@ export function BoardSheet({ book, grade, onClose }: { book: string; grade: Grad
     <div className="sheet-wrap" onClick={onClose}>
       <section className="sheet" onClick={(e) => e.stopPropagation()}>
         <h2 className="sheet-title">🏆 {GRADES[grade].icon}{GRADES[grade].label}排行榜</h2>
-        <p className="sheet-theme">12 關全部過關就能上榜，重玩刷星、刷時間可以往前衝</p>
+        <p className="sheet-theme">{stages} 關全部過關就能上榜，重玩刷星、刷時間可以往前衝</p>
         <div className="board-scroll">
           <BoardList top={top} me={getPref("name-" + grade) ?? undefined} />
         </div>
@@ -81,7 +81,7 @@ export function SubmitPanel({ book, grade, stars, ms, stages }: {
   return (
     <div className="board-panel">
       <div className="board-total">
-        <div className="board-total-title">🎊 12 關全部過關！</div>
+        <div className="board-total-title">🎊 {stages} 關全部過關！</div>
         <div className="board-total-num">
           總成績 <b>★ {stars}</b> ・ <b>{clock(ms)}</b>
         </div>
