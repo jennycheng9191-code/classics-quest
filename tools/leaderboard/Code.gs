@@ -1,5 +1,6 @@
 // 讀經闖關排行榜後台。
-// 貼到 Google 試算表的「擴充功能 → Apps Script」，部署成網頁應用程式（執行身分：我；存取權：所有人）。
+// 貼到 Apps Script（試算表的「擴充功能 → Apps Script」或 script.google.com 都可以），
+// 先執行一次 setup，再部署成網頁應用程式（執行身分：我；存取權：所有人）。
 // 成績存在「排行榜」工作表，有人亂取名字，直接刪掉那一列即可。
 const SHEET = '排行榜';
 const HEAD = ['經典', '年級', '名字', '星數', '用時(毫秒)', '用時', '更新時間'];
@@ -7,8 +8,27 @@ const PER_STAGE = { k: 5, low: 8, high: 10 }; // 每關題數，用來擋不合�
 const MAX_NAME = 12;
 const TOP = 10;
 
+// 從試算表「擴充功能 → Apps Script」建的專案會直接用那份試算表；
+// 從 script.google.com 另外建的專案沒有綁試算表，第一次執行時自動建一份並記住
+function book_() {
+  const bound = SpreadsheetApp.getActiveSpreadsheet();
+  if (bound) return bound;
+  const props = PropertiesService.getScriptProperties();
+  const id = props.getProperty('SHEET_ID');
+  if (id) return SpreadsheetApp.openById(id);
+  const ss = SpreadsheetApp.create('讀經闖關排行榜');
+  props.setProperty('SHEET_ID', ss.getId());
+  return ss;
+}
+
+// 第一次貼好程式後，選這個函式按「執行」：完成授權、建好工作表，並在下方記錄印出試算表網址
+function setup() {
+  sheet_();
+  Logger.log('排行榜試算表：' + book_().getUrl());
+}
+
 function sheet_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = book_();
   let sh = ss.getSheetByName(SHEET);
   if (!sh) {
     sh = ss.insertSheet(SHEET);
