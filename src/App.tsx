@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { BOOKS } from "./lib/books.ts";
-import { getPref, getStars, saveStars, setPref } from "./lib/progress.ts";
+import { BOARD_ON, clock } from "./lib/board.ts";
+import { getPref, getStars, saveRun, setPref, totals } from "./lib/progress.ts";
 import { GRADES, makeQuiz, stars, type Classic, type Grade } from "./lib/quiz.ts";
 import { QuestionView } from "./components/Questions.tsx";
 import { preload } from "./lib/sound.ts";
 import { Zh } from "./components/Zh.tsx";
+import { BoardSheet, SubmitPanel } from "./components/Board.tsx";
 
 type Screen =
   | { at: "home" }
   | { at: "grade"; book: Classic }
   | { at: "map"; book: Classic; grade: Grade; peek?: number }
   | { at: "play"; book: Classic; grade: Grade; stage: number; round: number }
-  | { at: "result"; book: Classic; grade: Grade; stage: number; right: number; total: number };
+  | { at: "result"; book: Classic; grade: Grade; stage: number; right: number; total: number; ms: number; record: boolean };
 
 const GRADE_KEYS = Object.keys(GRADES) as Grade[];
 
@@ -120,6 +122,7 @@ function MapView({ book, grade, peek, go, zhuyin, toggle }: {
   const ys = book.stages.map((_, i) => 60 + i * STEP);
   const path = xs.map((x, i) => (i ? "L" : "M") + x + " " + ys[i]).join(" ");
   const st = peek !== undefined ? book.stages[peek] : null;
+  const [board, setBoard] = useState(false);
 
   return (
     <>
@@ -131,6 +134,9 @@ function MapView({ book, grade, peek, go, zhuyin, toggle }: {
         onZhuyin={toggle}
       />
       <main className="page">
+        {BOARD_ON && (
+          <button className="board-open" onClick={() => setBoard(true)}>🏆 排行榜</button>
+        )}
         <div className="map" style={{ height: H }}>
           <svg className="map-path" viewBox={`0 0 100 ${H}`} preserveAspectRatio="none">
             <path d={path} vectorEffect="non-scaling-stroke" />
@@ -179,6 +185,7 @@ function MapView({ book, grade, peek, go, zhuyin, toggle }: {
           </section>
         </div>
       )}
+      {board && <BoardSheet book={book.id} grade={grade} onClose={() => setBoard(false)} />}
     </>
   );
 }
@@ -189,6 +196,8 @@ function Play({ book, grade, stage, round, go, zhuyin, toggle, sound, toggleSoun
 }) {
   // round 變了才重新出題（重玩同一關會換題）
   const quiz = useMemo(() => makeQuiz(book, stage, grade), [book, stage, grade, round]);
+  // 用時從出完題開始算，到最後一題結束（含答錯時看正解的時間）
+  const startAt = useMemo(() => Date.now(), [round]);
   const [idx, setIdx] = useState(0);
   const [right, setRight] = useState(0);
   const st = book.stages[stage];
@@ -198,8 +207,10 @@ function Play({ book, grade, stage, round, go, zhuyin, toggle, sound, toggleSoun
   const done = (ok: boolean) => {
     const r = right + (ok ? 1 : 0);
     if (idx + 1 >= quiz.length) {
-      saveStars(book.id, grade, st.id, stars(r, quiz.length));
-      go({ at: "result", book, grade, stage, right: r, total: quiz.length });
+      const ms = Date.now() - startAt;
+      const n = stars(r, quiz.length);
+      const record = n > 0 && saveRun(book.id, grade, st.id, n, ms);
+      go({ at: "result", book, grade, stage, right: r, total: quiz.length, ms, record });
     } else {
       setRight(r);
       setIdx(idx + 1);
@@ -226,18 +237,25 @@ function Play({ book, grade, stage, round, go, zhuyin, toggle, sound, toggleSoun
   );
 }
 
-function Result({ book, grade, stage, right, total, go }: {
-  book: Classic; grade: Grade; stage: number; right: number; total: number; go: (s: Screen) => void;
+function Result({ book, grade, stage, right, total, ms, record, go }: {
+  book: Classic; grade: Grade; stage: number; right: number; total: number; ms: number; record: boolean; go: (s: Screen) => void;
 }) {
   const n = stars(right, total);
   const hasNext = stage + 1 < book.stages.length;
+  const sum = BOARD_ON ? totals(book.id, grade, book.stages.map((s) => s.id)) : null;
   return (
     <main className="page result">
       <div className="result-card">
         <div className="result-emoji">{n === 3 ? "🏆" : n > 0 ? "🎉" : "💪"}</div>
         <h2 className="result-title">{n > 0 ? "過關了！" : "差一點點，再試一次"}</h2>
         <Starline n={n} size="stars-lg" />
-        <p className="result-score">答對 {right} / {total} 題</p>
+        <p className="result-score">
+          答對 {right} / {total} 題 ・ 用時 {clock(ms)}
+          {record && <span className="result-record">這關新紀錄！</span>}
+        </p>
+        {sum && n > 0 && (
+          <SubmitPanel book={book.id} grade={grade} stars={sum.stars} ms={sum.ms} stages={book.stages.length} />
+        )}
         <div className="stack">
           {n > 0 && hasNext && (
             <button className="btn-main" onClick={() => go({ at: "map", book, grade, peek: stage + 1 })}>
@@ -267,6 +285,8 @@ export default function App() {
     if (s.at !== screen.at) window.scrollTo(0, 0);
     setScreen(s);
   };
+  // 開發時讓測試腳本可以直接跳畫面；正式版會被整段拿掉
+  if (import.meta.env.DEV) Object.assign(window, { __go: go, __books: BOOKS });
   const grade = "grade" in screen ? screen.grade : null;
   const zhuyin = grade ? (zy[grade] ?? zhuyinDefault(grade)) : true;
   const toggle = () => {
