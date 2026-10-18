@@ -34,6 +34,18 @@ function shuffle<T>(a: T[], r: Rng): T[] {
 }
 const piece = (c: Clause): Piece => ({ t: c.t, z: c.z });
 
+// 「詩云：」「子曰：」「康誥曰：」這類只交代誰說的小句不出題，題目只取經文內文
+export const isSpeaker = (c: Clause) => /[曰云]$/.test(c.t) && c.p.startsWith("：");
+const bodies = new WeakMap<Classic, Classic>();
+export function bodyOnly(book: Classic): Classic {
+  let b = bodies.get(book);
+  if (!b) {
+    b = { ...book, stages: book.stages.map((st) => ({ ...st, clauses: st.clauses.filter((c) => !isSpeaker(c)) })) };
+    bodies.set(book, b);
+  }
+  return b;
+}
+
 // 全書攤平成一條，方便跨章找「同一段文字後面接什麼」
 function flatten(book: Classic) {
   const all: { cl: Clause; loc: Loc }[] = [];
@@ -132,7 +144,10 @@ function makeFill(book: Classic, si: number, g: Grade, r: Rng, used: Set<string>
 function makeOrder(book: Classic, si: number, g: Grade, r: Rng, used: Set<string>): OrderQ | null {
   const stage = book.stages[si];
   const cl = stage.clauses;
-  for (const n of shuffle(GRADES[g].orderPieces, r)) {
+  // 章太短排不出規定塊數時，退一步少一塊（最少 3 塊）
+  const want = GRADES[g].orderPieces;
+  const fallback = Array.from({ length: Math.max(0, Math.min(...want) - 3) }, (_, k) => Math.min(...want) - 1 - k);
+  for (const n of [...shuffle(want, r), ...fallback]) {
     const maxChars = g === "k" ? 24 : g === "low" ? 36 : 54;
     const starts = cl.map((_, i) => i).filter((i) => i + n <= cl.length && !used.has("o" + si + ":" + i));
     const good = starts.filter((i) => i === 0 || /[。；？！]/.test(cl[i - 1].p));
@@ -155,7 +170,8 @@ function makeOrder(book: Classic, si: number, g: Grade, r: Rng, used: Set<string
 
 const MAKERS = { next: makeNext, fill: makeFill, order: makeOrder };
 
-export function makeQuiz(book: Classic, si: number, g: Grade, r: Rng = Math.random): Question[] {
+export function makeQuiz(full: Classic, si: number, g: Grade, r: Rng = Math.random): Question[] {
+  const book = bodyOnly(full);
   const n = GRADES[g].count;
   const kinds = (["next", "fill", "order"] as const);
   // 三種題型輪流，起點隨機，順序再打散
@@ -167,8 +183,8 @@ export function makeQuiz(book: Classic, si: number, g: Grade, r: Rng = Math.rand
     let q: Question | null = MAKERS[k](book, si, g, r, used);
     // 這一章出不了這種題（例如太短）就換別的題型
     for (const alt of kinds) if (!q) q = MAKERS[alt](book, si, g, r, used);
-    // 章太短、題目出完了（如傳一章只有 26 字），才允許重複出同一句、選項重抽
-    if (!q) q = MAKERS[k](book, si, g, r, new Set());
+    // 章太短、題目出完了（如傳一章內文只有 4 句），才允許重複出同一句、選項重抽
+    for (const alt of [k, ...kinds]) if (!q) q = MAKERS[alt](book, si, g, r, new Set());
     if (q) out.push(q);
   }
   return out;

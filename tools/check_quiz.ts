@@ -1,7 +1,7 @@
 // 自動檢查題目產生器：每一關 × 每一級各出 50 次，驗證題目沒有歧義。
 // 用法：node tools/check_quiz.ts
 import { readFileSync, readdirSync } from "node:fs";
-import { makeQuiz, GRADES, type Classic, type Grade } from "../src/lib/quiz.ts";
+import { bodyOnly, makeQuiz, GRADES, type Classic, type Grade } from "../src/lib/quiz.ts";
 
 const dir = new URL("../src/data/classics/", import.meta.url);
 let errors = 0, total = 0;
@@ -15,7 +15,10 @@ const PUNCT = /[，。；：？！、「」]/;
 
 for (const f of readdirSync(dir).filter((x) => x.endsWith(".json"))) {
   const book: Classic = JSON.parse(readFileSync(new URL(f, dir), "utf-8"));
-  const flat = book.stages.flatMap((s) => s.clauses.map((c) => c.t));
+  // 「誰說的」小句不出題：接句的上下文以拿掉它們之後的內文為準
+  const flat = bodyOnly(book).stages.flatMap((s) => s.clauses.map((c) => c.t));
+  const speakers = new Set(book.stages.flatMap((s) => s.clauses.filter((c) => /[曰云]$/.test(c.t) && c.p.startsWith("：")).map((c) => c.t)));
+  const noSpeaker = (where: string, ts: string[]) => ts.forEach((t) => speakers.has(t) && fail(`${where} 出現「${t}」`));
   const allTexts = new Set(flat);
   book.stages.forEach((st, si) => {
     for (const g of Object.keys(GRADES) as Grade[]) {
@@ -27,6 +30,9 @@ for (const f of readdirSync(dir).filter((x) => x.endsWith(".json"))) {
         for (const q of qs) {
           total++;
           kinds[q.kind] = (kinds[q.kind] || 0) + 1;
+          if (q.kind === "next") noSpeaker(where, [...q.prompt, ...q.options].map((p) => p.t));
+          else if (q.kind === "fill") noSpeaker(where, [q.clause.t, ...(q.before ? [q.before.t] : [])]);
+          else noSpeaker(where, q.pieces.map((p) => p.t));
           if (q.kind === "next") {
             const texts = q.options.map((o) => o.t);
             if (new Set(texts).size !== texts.length) fail(`${where} 接句選項重複 ${texts}`);
@@ -59,7 +65,7 @@ for (const f of readdirSync(dir).filter((x) => x.endsWith(".json"))) {
             const orig = q.pieces.map((p) => p.t).join("|");
             const sh = q.shuffled.map((k) => q.pieces[k].t).join("|");
             if (orig === sh) fail(`${where} 打散後跟原順序一樣`);
-            if (!GRADES[g].orderPieces.includes(q.pieces.length)) fail(`${where} 排序塊數 ${q.pieces.length}`);
+            if (q.pieces.length < 3 || q.pieces.length > Math.max(...GRADES[g].orderPieces)) fail(`${where} 排序塊數 ${q.pieces.length}`);
             if ([...q.shuffled].sort().join() !== q.pieces.map((_, i) => i).join()) fail(`${where} 打散索引錯`);
           }
         }
