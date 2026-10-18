@@ -18,27 +18,30 @@ function audio(): AudioContext {
 export function ding() {
   const a = audio();
   const t0 = a.currentTime + 0.01;
-  // 門鈴的「叮～咚～」：先高（E5）後低（C5），每個音疊兩個泛音才像鈴聲，尾音慢慢消失
+  // 三角鐵的「叮～咚～」：先高（G6）後低（E6）。三角鐵的泛音不成整數倍，
+  // 疊幾個非整數倍的高頻、再讓兩個稍微走音的主音互相拍打，才有那種清脆發亮的餘音
   [
-    [659.3, 0],
-    [523.3, 0.38],
-  ].forEach(([f, dt]) => {
+    [1568, 0, 1],
+    [1318.5, 0.26, 0.85],
+  ].forEach(([f, dt, loud]) => {
     [
-      [1, 0.22],
-      [2, 0.07],
-      [3, 0.03],
-    ].forEach(([mul, vol]) => {
+      [1, 0.14, 1.6],
+      [1.004, 0.1, 1.6],
+      [2.76, 0.05, 0.9],
+      [5.4, 0.025, 0.45],
+      [8.93, 0.012, 0.25],
+    ].forEach(([mul, vol, decay]) => {
       const o = a.createOscillator();
       const g = a.createGain();
       const at = t0 + dt;
       o.type = "sine";
       o.frequency.value = f * mul;
       g.gain.setValueAtTime(0, at);
-      g.gain.linearRampToValueAtTime(vol, at + 0.008);
-      g.gain.exponentialRampToValueAtTime(0.001, at + (mul === 1 ? 1.1 : 0.5));
+      g.gain.linearRampToValueAtTime(vol * loud, at + 0.003);
+      g.gain.exponentialRampToValueAtTime(0.0005, at + decay);
       o.connect(g).connect(a.destination);
       o.start(at);
-      o.stop(at + 1.2);
+      o.stop(at + decay + 0.05);
     });
   });
 }
