@@ -18,21 +18,28 @@ function audio(): AudioContext {
 export function ding() {
   const a = audio();
   const t0 = a.currentTime + 0.01;
-  // 兩個音：叮（E6）咚（A6），像小鈴鐺
+  // 門鈴的「叮～咚～」：先高（E5）後低（C5），每個音疊兩個泛音才像鈴聲，尾音慢慢消失
   [
-    [1318.5, 0],
-    [1760, 0.12],
+    [659.3, 0],
+    [523.3, 0.38],
   ].forEach(([f, dt]) => {
-    const o = a.createOscillator();
-    const g = a.createGain();
-    o.type = "sine";
-    o.frequency.value = f;
-    g.gain.setValueAtTime(0, t0 + dt);
-    g.gain.linearRampToValueAtTime(0.25, t0 + dt + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.001, t0 + dt + 0.45);
-    o.connect(g).connect(a.destination);
-    o.start(t0 + dt);
-    o.stop(t0 + dt + 0.5);
+    [
+      [1, 0.22],
+      [2, 0.07],
+      [3, 0.03],
+    ].forEach(([mul, vol]) => {
+      const o = a.createOscillator();
+      const g = a.createGain();
+      const at = t0 + dt;
+      o.type = "sine";
+      o.frequency.value = f * mul;
+      g.gain.setValueAtTime(0, at);
+      g.gain.linearRampToValueAtTime(vol, at + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.001, at + (mul === 1 ? 1.1 : 0.5));
+      o.connect(g).connect(a.destination);
+      o.start(at);
+      o.stop(at + 1.2);
+    });
   });
 }
 
