@@ -47,7 +47,7 @@ function flatten(book: Classic) {
 
 // ---------- 接下一句 ----------
 // 正解一定是內文；題目句與正解之間隔著「詩云：」之類時，把它接在題目後面一起顯示。
-// 題目在全書重複出現（如「此謂知本」）時，往前多帶一句直到下一句唯一；
+// 題目在全書重複出現（如「故君子必慎其獨也」）時，往前多帶一句直到下一句唯一；
 // 正解靠位置決定，干擾選項不得是任何一處相同題目的下一句。
 function makeNext(book: Classic, si: number, g: Grade, r: Rng, used: Set<string>): NextQ | null {
   const flat = flatten(book);

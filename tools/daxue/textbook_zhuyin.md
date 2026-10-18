@@ -30,7 +30,7 @@
 
 ## 傳之五章　釋格物致知
 
-<ruby>此<rt>ㄘˇ</rt></ruby><ruby>謂<rt>ㄨㄟˋ</rt></ruby><ruby>知<rt>ㄓ</rt></ruby><ruby>本<rt>ㄅㄣˇ</rt></ruby>，<ruby>此<rt>ㄘˇ</rt></ruby><ruby>謂<rt>ㄨㄟˋ</rt></ruby><ruby>知<rt>ㄓ</rt></ruby><ruby>之<rt>ㄓ</rt></ruby><ruby>至<rt>ㄓˋ</rt></ruby><ruby>也<rt>ㄧㄝˇ</rt></ruby>。
+<ruby>此<rt>ㄘˇ</rt></ruby><ruby>謂<rt>ㄨㄟˋ</rt></ruby><ruby>知<rt>ㄓ</rt></ruby><ruby>之<rt>ㄓ</rt></ruby><ruby>至<rt>ㄓˋ</rt></ruby><ruby>也<rt>ㄧㄝˇ</rt></ruby>。
 
 ## 傳之六章　釋誠意
 
