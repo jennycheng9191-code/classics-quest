@@ -5,8 +5,7 @@ import { ding, hush, speak } from "../lib/sound.ts";
 import { Char, Zh } from "./Zh.tsx";
 
 const RIGHT_MS = 900;
-const WRONG_MS = 1500;
-const WRONG_ORDER_MS = 2500; // 排序題正解比較長，多留一點時間看
+const WRONG_MS = 2000; // 答錯時正確答案停留的時間
 
 // 答對叮咚一聲；答錯念出正確答案，念完才換下一題
 function useFinish(onDone: (ok: boolean) => void, sound: boolean) {
@@ -158,7 +157,7 @@ function OrderView({ q, show, sound, onDone }: Props<OrderQ>) {
       // 比文字不比位置：全書有重複句時，兩塊對調也算對
       const good = next.map((s) => q.pieces[q.shuffled[s]].t).join("|") === q.pieces.map((p) => p.t).join("|");
       setOk(good);
-      finish(good, good ? RIGHT_MS : WRONG_ORDER_MS, q.pieces);
+      finish(good, good ? RIGHT_MS : WRONG_MS, q.pieces);
     }
   };
   const undo = (i: number) => ok === null && setPlaced(placed.filter((_, k) => k !== i));
