@@ -34,17 +34,9 @@ function shuffle<T>(a: T[], r: Rng): T[] {
 }
 const piece = (c: Clause): Piece => ({ t: c.t, z: c.z });
 
-// 「詩云：」「子曰：」「康誥曰：」這類只交代誰說的小句不出題，題目只取經文內文
+// 「詩云：」「子曰：」「康誥曰：」這類只交代誰說的小句：不當正解、不挖空、不當干擾選項，
+// 只在接句題題目裡跟著顯示、排序題最多出現一塊。重點是經文內文
 export const isSpeaker = (c: Clause) => /[曰云]$/.test(c.t) && c.p.startsWith("：");
-const bodies = new WeakMap<Classic, Classic>();
-export function bodyOnly(book: Classic): Classic {
-  let b = bodies.get(book);
-  if (!b) {
-    b = { ...book, stages: book.stages.map((st) => ({ ...st, clauses: st.clauses.filter((c) => !isSpeaker(c)) })) };
-    bodies.set(book, b);
-  }
-  return b;
-}
 
 // 全書攤平成一條，方便跨章找「同一段文字後面接什麼」
 function flatten(book: Classic) {
@@ -54,34 +46,41 @@ function flatten(book: Classic) {
 }
 
 // ---------- 接下一句 ----------
-// 題目句在全書重複出現（如「詩云」「此謂知本」）時，往前多帶一句直到下一句唯一；
+// 正解一定是內文；題目句與正解之間隔著「詩云：」之類時，把它接在題目後面一起顯示。
+// 題目在全書重複出現（如「此謂知本」）時，往前多帶一句直到下一句唯一；
 // 正解靠位置決定，干擾選項不得是任何一處相同題目的下一句。
 function makeNext(book: Classic, si: number, g: Grade, r: Rng, used: Set<string>): NextQ | null {
   const flat = flatten(book);
   const stage = book.stages[si];
+  const cl = stage.clauses;
   const base = flat.findIndex((x) => x.loc.s === si && x.loc.c === 0);
   const nOpts = GRADES[g].nextOpts;
-  const starts = shuffle(stage.clauses.slice(0, -1).map((_, i) => i), r);
-  for (const ci of starts) {
-    const at = base + ci;
-    const nextText = flat[at + 1].cl.t;
-    let len = 1;
+  const answers = shuffle(cl.map((_, j) => j).filter((j) => j > 0 && !isSpeaker(cl[j])), r);
+  for (const j of answers) {
+    const key = "n" + si + ":" + j;
+    if (used.has(key)) continue;
+    const nextText = cl[j].t;
+    // 題目至少要有一句內文
+    let p0 = j - 1;
+    while (p0 >= 0 && isSpeaker(cl[p0])) p0--;
+    if (p0 < 0) continue;
     let nexts: Set<string> = new Set();
-    for (; len <= 3 && at - len + 1 >= base; len++) {
-      const seq = flat.slice(at - len + 1, at + 1).map((x) => x.cl.t);
+    for (let body = 1; body <= 3 && p0 >= 0; body++) {
+      const seq = flat.slice(base + p0, base + j).map((x) => x.cl.t);
       nexts = new Set();
-      for (let k = 0; k + len < flat.length; k++) {
-        if (seq.every((t, j) => flat[k + j].cl.t === t)) nexts.add(flat[k + len].cl.t);
+      for (let k = 0; k + seq.length < flat.length; k++) {
+        if (seq.every((t, m) => flat[k + m].cl.t === t)) nexts.add(flat[k + seq.length].cl.t);
       }
       if (nexts.size === 1) break;
+      // 不唯一：再往前多帶一句內文（中間的「誰說的」一起帶）
+      p0--;
+      while (p0 >= 0 && isSpeaker(cl[p0])) p0--;
     }
-    if (nexts.size !== 1) continue;
-    const prompt = flat.slice(at - len + 1, at + 1).map((x) => ({ ...piece(x.cl), p: x.cl.p }));
-    const key = "n" + si + ":" + ci;
-    if (used.has(key)) continue;
+    if (nexts.size !== 1 || p0 < 0) continue;
+    const prompt = cl.slice(p0, j).map((c) => ({ ...piece(c), p: c.p }));
 
     const L = nextText.length;
-    const pool = flat.filter((x) => !nexts.has(x.cl.t));
+    const pool = flat.filter((x) => !isSpeaker(x.cl) && !nexts.has(x.cl.t));
     let cand: Clause[];
     if (g === "k") cand = pool.filter((x) => x.loc.s !== si && Math.abs(x.cl.t.length - L) >= 2).map((x) => x.cl);
     else if (g === "low") cand = pool.filter((x) => x.loc.s !== si && Math.abs(x.cl.t.length - L) <= 1).map((x) => x.cl);
@@ -95,7 +94,7 @@ function makeNext(book: Classic, si: number, g: Grade, r: Rng, used: Set<string>
     const distinct = [...new Map(cand.map((c) => [c.t, c])).values()];
     if (distinct.length < nOpts - 1) continue;
     const wrong = shuffle(distinct, r).slice(0, nOpts - 1).map(piece);
-    const options = shuffle([piece(flat[at + 1].cl), ...wrong], r);
+    const options = shuffle([piece(cl[j]), ...wrong], r);
     used.add(key);
     return { kind: "next", prompt, options, answer: options.findIndex((o) => o.t === nextText) };
   }
@@ -106,12 +105,13 @@ function makeNext(book: Classic, si: number, g: Grade, r: Rng, used: Set<string>
 function makeFill(book: Classic, si: number, g: Grade, r: Rng, used: Set<string>): FillQ | null {
   const { fillBlanks: nb, fillOpts: no } = GRADES[g];
   const stage = book.stages[si];
+  const body = stage.clauses.filter((c) => !isSpeaker(c));
   const allTexts = new Set(flatten(book).map((x) => x.cl.t));
-  // 干擾字取同一關出現過的字（帶各自的注音）
+  // 干擾字取同一關內文出現過的字（帶各自的注音）
   const charPool = new Map<string, string>();
-  stage.clauses.forEach((c) => [...c.t].forEach((ch, i) => charPool.has(ch) || charPool.set(ch, c.z[i])));
+  body.forEach((c) => [...c.t].forEach((ch, i) => charPool.has(ch) || charPool.set(ch, c.z[i])));
   const minLen = nb + 2;
-  const cands = shuffle(stage.clauses.filter((c) => c.t.length >= minLen && !used.has("f" + c.t)), r);
+  const cands = shuffle(body.filter((c) => c.t.length >= minLen && !used.has("f" + c.t)), r);
   for (const cl of cands) {
     const blanks = shuffle([...cl.t].map((_, i) => i), r).slice(0, nb).sort((a, b) => a - b);
     const options: Piece[][] = [];
@@ -131,7 +131,7 @@ function makeFill(book: Classic, si: number, g: Grade, r: Rng, used: Set<string>
     }
     if (!ok) continue;
     used.add("f" + cl.t);
-    // 前一句當提示，小句太短時才猜得出來
+    // 前一句當提示（可能是「詩云」），小句太短時才猜得出來
     const prev = stage.clauses[stage.clauses.indexOf(cl) - 1];
     const before = prev ? { ...piece(prev), p: prev.p } : undefined;
     return { kind: "fill", before, clause: piece(cl), blanks, options, answers };
@@ -155,6 +155,8 @@ function makeOrder(book: Classic, si: number, g: Grade, r: Rng, used: Set<string
       const seg = cl.slice(i, i + n);
       if (seg.reduce((a, c) => a + c.t.length, 0) > maxChars) continue;
       if (new Set(seg.map((c) => c.t)).size < 2) continue;
+      // 「詩云」之類最多一塊，也不能是最後一塊（句子會停在半空）
+      if (seg.filter(isSpeaker).length > 1 || isSpeaker(seg[n - 1])) continue;
       let sh: number[] = [];
       for (let tries = 0; tries < 20; tries++) {
         sh = shuffle(seg.map((_, k) => k), r);
@@ -170,8 +172,7 @@ function makeOrder(book: Classic, si: number, g: Grade, r: Rng, used: Set<string
 
 const MAKERS = { next: makeNext, fill: makeFill, order: makeOrder };
 
-export function makeQuiz(full: Classic, si: number, g: Grade, r: Rng = Math.random): Question[] {
-  const book = bodyOnly(full);
+export function makeQuiz(book: Classic, si: number, g: Grade, r: Rng = Math.random): Question[] {
   const n = GRADES[g].count;
   const kinds = (["next", "fill", "order"] as const);
   // 三種題型輪流，起點隨機，順序再打散
