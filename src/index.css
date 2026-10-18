@@ -121,6 +121,12 @@ button {
   background: var(--card);
   border: 2px solid var(--line);
 }
+.tb-sound {
+  font-size: 28px;
+}
+.tb-sound-off {
+  opacity: 0.6;
+}
 .tb-ghost {
   visibility: hidden;
 }

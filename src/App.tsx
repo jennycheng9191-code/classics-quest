@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BOOKS } from "./lib/books.ts";
 import { getPref, getStars, saveStars, setPref } from "./lib/progress.ts";
 import { GRADES, makeQuiz, stars, type Classic, type Grade } from "./lib/quiz.ts";
 import { QuestionView } from "./components/Questions.tsx";
+import { preload } from "./lib/sound.ts";
 import { Zh } from "./components/Zh.tsx";
 
 type Screen =
@@ -29,7 +30,9 @@ function Starline({ n, size = "" }: { n: number; size?: string }) {
   );
 }
 
-function TopBar(props: { onBack?: () => void; title: string; sub?: string; zhuyin?: boolean; onZhuyin?: () => void }) {
+function TopBar(props: {
+  onBack?: () => void; title: string; sub?: string; zhuyin?: boolean; onZhuyin?: () => void; sound?: boolean; onSound?: () => void;
+}) {
   return (
     <header className="topbar">
       {props.onBack ? (
@@ -41,6 +44,11 @@ function TopBar(props: { onBack?: () => void; title: string; sub?: string; zhuyi
         <div className="tb-main">{props.title}</div>
         {props.sub && <div className="tb-sub">{props.sub}</div>}
       </div>
+      {props.onSound && (
+        <button className={"tb-btn tb-sound" + (props.sound ? "" : " tb-sound-off")} onClick={props.onSound} aria-pressed={props.sound} aria-label="聲音">
+          {props.sound ? "🔊" : "🔇"}
+        </button>
+      )}
       {props.onZhuyin ? (
         <button className={"tb-zy" + (props.zhuyin ? " tb-zy-on" : "")} onClick={props.onZhuyin} aria-pressed={props.zhuyin}>
           ㄅㄆㄇ
@@ -175,14 +183,18 @@ function MapView({ book, grade, peek, go, zhuyin, toggle }: {
   );
 }
 
-function Play({ book, grade, stage, round, go, zhuyin, toggle }: {
+function Play({ book, grade, stage, round, go, zhuyin, toggle, sound, toggleSound }: {
   book: Classic; grade: Grade; stage: number; round: number; go: (s: Screen) => void; zhuyin: boolean; toggle: () => void;
+  sound: boolean; toggleSound: () => void;
 }) {
   // round 變了才重新出題（重玩同一關會換題）
   const quiz = useMemo(() => makeQuiz(book, stage, grade), [book, stage, grade, round]);
   const [idx, setIdx] = useState(0);
   const [right, setRight] = useState(0);
   const st = book.stages[stage];
+  useEffect(() => {
+    if (sound) preload(st.clauses);
+  }, [st, sound]);
   const done = (ok: boolean) => {
     const r = right + (ok ? 1 : 0);
     if (idx + 1 >= quiz.length) {
@@ -201,12 +213,14 @@ function Play({ book, grade, stage, round, go, zhuyin, toggle }: {
         onBack={() => go({ at: "map", book, grade })}
         zhuyin={zhuyin}
         onZhuyin={toggle}
+        sound={sound}
+        onSound={toggleSound}
       />
       <div className="progress">
         <div className="progress-bar" style={{ width: `${(idx / quiz.length) * 100}%` }} />
       </div>
       <main className="page play">
-        <QuestionView key={round + "-" + idx} q={quiz[idx]} show={zhuyin} onDone={done} />
+        <QuestionView key={round + "-" + idx} q={quiz[idx]} show={zhuyin} sound={sound} onDone={done} />
       </main>
     </>
   );
@@ -243,6 +257,11 @@ function Result({ book, grade, stage, right, total, go }: {
 export default function App() {
   const [screen, setScreen] = useState<Screen>({ at: "home" });
   const [zy, setZy] = useState<Partial<Record<Grade, boolean>>>({});
+  const [sound, setSound] = useState(() => getPref("sound") !== "0");
+  const toggleSound = () => {
+    setSound(!sound);
+    setPref("sound", sound ? "0" : "1");
+  };
   const go = (s: Screen) => {
     // 地圖上開關說明卡不捲動，換畫面才回頂端
     if (s.at !== screen.at) window.scrollTo(0, 0);
@@ -264,7 +283,7 @@ export default function App() {
     case "map":
       return <MapView {...screen} go={go} zhuyin={zhuyin} toggle={toggle} />;
     case "play":
-      return <Play {...screen} go={go} zhuyin={zhuyin} toggle={toggle} />;
+      return <Play {...screen} go={go} zhuyin={zhuyin} toggle={toggle} sound={sound} toggleSound={toggleSound} />;
     case "result":
       return <Result {...screen} go={go} />;
   }

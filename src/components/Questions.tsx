@@ -1,19 +1,47 @@
 // 三種題型的畫面。每題做完呼叫 onDone(答對與否)，由外層換下一題。
 import { useEffect, useRef, useState } from "react";
-import type { FillQ, NextQ, OrderQ, Question } from "../lib/quiz.ts";
+import type { FillQ, NextQ, OrderQ, Piece, Question } from "../lib/quiz.ts";
+import { ding, hush, speak } from "../lib/sound.ts";
 import { Char, Zh } from "./Zh.tsx";
 
 const RIGHT_MS = 900;
 const WRONG_MS = 1500;
 const WRONG_ORDER_MS = 2500; // 排序題正解比較長，多留一點時間看
 
-function useFinish(onDone: (ok: boolean) => void) {
+// 答對叮咚一聲；答錯念出正確答案，念完才換下一題
+function useFinish(onDone: (ok: boolean) => void, sound: boolean) {
   const t = useRef<number>(0);
-  useEffect(() => () => clearTimeout(t.current), []);
-  return (ok: boolean, ms: number) => {
-    t.current = window.setTimeout(() => onDone(ok), ms);
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+      clearTimeout(t.current);
+      hush();
+    };
+  }, []);
+  return (ok: boolean, ms: number, answer: Piece[]) => {
+    const later = (wait: number) => {
+      if (alive.current) t.current = window.setTimeout(() => onDone(ok), wait);
+    };
+    if (!sound) return later(ms);
+    if (ok) {
+      ding();
+      return later(ms);
+    }
+    // 音檔載太久（網路慢）就不等了，遊戲不能卡住
+    const slow = new Promise<number>((r) => setTimeout(() => r(-1), 3000));
+    Promise.race([speak(answer), slow]).then(
+      (sec) => {
+        if (sec < 0) hush();
+        later(Math.max(ms, sec * 1000 + 600));
+      },
+      () => later(ms),
+    );
   };
 }
+
+type Props<Q> = { q: Q; show: boolean; sound: boolean; onDone: (ok: boolean) => void };
 
 function Verdict({ ok }: { ok: boolean | null }) {
   if (ok === null) return <div className="h-14" />;
@@ -24,14 +52,14 @@ function Verdict({ ok }: { ok: boolean | null }) {
   );
 }
 
-function NextView({ q, show, onDone }: { q: NextQ; show: boolean; onDone: (ok: boolean) => void }) {
+function NextView({ q, show, sound, onDone }: Props<NextQ>) {
   const [pick, setPick] = useState<number | null>(null);
-  const finish = useFinish(onDone);
+  const finish = useFinish(onDone, sound);
   const ok = pick === null ? null : pick === q.answer;
   const choose = (i: number) => {
     if (pick !== null) return;
     setPick(i);
-    finish(i === q.answer, i === q.answer ? RIGHT_MS : WRONG_MS);
+    finish(i === q.answer, i === q.answer ? RIGHT_MS : WRONG_MS, [q.options[q.answer]]);
   };
   return (
     <>
@@ -59,10 +87,10 @@ function NextView({ q, show, onDone }: { q: NextQ; show: boolean; onDone: (ok: b
   );
 }
 
-function FillView({ q, show, onDone }: { q: FillQ; show: boolean; onDone: (ok: boolean) => void }) {
+function FillView({ q, show, sound, onDone }: Props<FillQ>) {
   const [step, setStep] = useState(0); // 正在填第幾個空格
   const [miss, setMiss] = useState<number | null>(null); // 選錯的字卡
-  const finish = useFinish(onDone);
+  const finish = useFinish(onDone, sound);
   const over = miss !== null || step >= q.blanks.length;
   const ok = !over ? null : miss === null;
   const choose = (k: number) => {
@@ -70,10 +98,10 @@ function FillView({ q, show, onDone }: { q: FillQ; show: boolean; onDone: (ok: b
     if (k === q.answers[step]) {
       const n = step + 1;
       setStep(n);
-      if (n >= q.blanks.length) finish(true, RIGHT_MS);
+      if (n >= q.blanks.length) finish(true, RIGHT_MS, []);
     } else {
       setMiss(k);
-      finish(false, WRONG_MS);
+      finish(false, WRONG_MS, [q.clause]);
     }
   };
   return (
@@ -117,10 +145,10 @@ function FillView({ q, show, onDone }: { q: FillQ; show: boolean; onDone: (ok: b
   );
 }
 
-function OrderView({ q, show, onDone }: { q: OrderQ; show: boolean; onDone: (ok: boolean) => void }) {
+function OrderView({ q, show, sound, onDone }: Props<OrderQ>) {
   const [placed, setPlaced] = useState<number[]>([]); // 依序點進來的塊（存 shuffled 的位置）
   const [ok, setOk] = useState<boolean | null>(null);
-  const finish = useFinish(onDone);
+  const finish = useFinish(onDone, sound);
   const n = q.pieces.length;
   const tap = (slot: number) => {
     if (ok !== null) return;
@@ -130,7 +158,7 @@ function OrderView({ q, show, onDone }: { q: OrderQ; show: boolean; onDone: (ok:
       // 比文字不比位置：全書有重複句時，兩塊對調也算對
       const good = next.map((s) => q.pieces[q.shuffled[s]].t).join("|") === q.pieces.map((p) => p.t).join("|");
       setOk(good);
-      finish(good, good ? RIGHT_MS : WRONG_ORDER_MS);
+      finish(good, good ? RIGHT_MS : WRONG_ORDER_MS, q.pieces);
     }
   };
   const undo = (i: number) => ok === null && setPlaced(placed.filter((_, k) => k !== i));
@@ -172,7 +200,7 @@ function OrderView({ q, show, onDone }: { q: OrderQ; show: boolean; onDone: (ok:
   );
 }
 
-export function QuestionView(props: { q: Question; show: boolean; onDone: (ok: boolean) => void }) {
+export function QuestionView(props: Props<Question>) {
   const { q } = props;
   if (q.kind === "next") return <NextView {...props} q={q} />;
   if (q.kind === "fill") return <FillView {...props} q={q} />;
