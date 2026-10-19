@@ -86,7 +86,7 @@ function Home({ go }: { go: (s: Screen) => void }) {
 function GradePick({ book, go }: { book: Classic; go: (s: Screen) => void }) {
   return (
     <>
-      <TopBar title={`《${book.title}》`} sub="選你的年級" onBack={() => go({ at: "home" })} />
+      <TopBar title={`《${book.title}》`} sub="選你的難度" onBack={() => go({ at: "home" })} />
       <main className="page">
         <div className="stack">
           {GRADE_KEYS.map((g) => {

@@ -16,9 +16,9 @@ export const GRADES: Record<Grade, {
   label: string; icon: string; count: number; nextOpts: number;
   fillBlanks: number; fillOpts: number; orderPieces: number[]; zhuyin: boolean;
 }> = {
-  k: { label: "幼兒園", icon: "🌱", count: 5, nextOpts: 3, fillBlanks: 1, fillOpts: 3, orderPieces: [3], zhuyin: true },
-  low: { label: "低年級", icon: "🌿", count: 8, nextOpts: 4, fillBlanks: 2, fillOpts: 4, orderPieces: [4], zhuyin: true },
-  high: { label: "高年級", icon: "🌳", count: 10, nextOpts: 4, fillBlanks: 3, fillOpts: 4, orderPieces: [5, 6], zhuyin: false },
+  k: { label: "初階", icon: "🌱", count: 5, nextOpts: 3, fillBlanks: 1, fillOpts: 3, orderPieces: [3], zhuyin: true },
+  low: { label: "中階", icon: "🌿", count: 8, nextOpts: 4, fillBlanks: 2, fillOpts: 4, orderPieces: [4], zhuyin: true },
+  high: { label: "高階", icon: "🌳", count: 10, nextOpts: 4, fillBlanks: 3, fillOpts: 4, orderPieces: [5, 6], zhuyin: false },
 };
 
 type Rng = () => number;

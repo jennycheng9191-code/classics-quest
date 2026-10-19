@@ -1,6 +1,6 @@
 # 讀經闖關
 
-讀經班小朋友（幼兒園～國小）用平板／手機闖關背經典。一章一關，三種題型（接下一句、填空選字、排順序），三個年級各自的難度與進度。
+讀經班小朋友（幼兒園～國小）用平板／手機闖關背經典。一章一關，三種題型（接下一句、填空選字、排順序），三個難度（初階／中階／高階）各自的進度。
 
 - 線上：https://jennycheng9191-code.github.io/classics-quest/
 - 技術：React＋Vite＋Tailwind，GitHub Pages（`vite.config.ts` 的 `base` 不可拿掉）
