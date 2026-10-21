@@ -314,9 +314,9 @@ button {
 .shelf-head {
   writing-mode: vertical-rl;
   display: flex;
-  flex-direction: column; /* 直式裡 column＝由右往左 */
-  align-items: flex-start;
-  gap: 8px;
+  flex-direction: row; /* 直式裡 row＝由上往下：「選你的難度」接在書名下面，同一行 */
+  align-items: center;
+  gap: 14px;
   margin-left: 6px;
 }
 .shelf-title {
@@ -325,7 +325,6 @@ button {
   letter-spacing: 0.08em;
 }
 .shelf-sub {
-  margin-top: 1.2em;
   font-size: 22px;
   color: var(--ink-soft);
   letter-spacing: 0.1em;
@@ -372,12 +371,11 @@ button {
   flex: none;
   writing-mode: vertical-rl;
   display: flex;
-  flex-direction: column; /* 直式裡 column＝由右往左 */
-  align-items: flex-start;
-  gap: 10px;
+  flex-direction: row; /* 直式裡 row＝由上往下：書名、難度星星、排行榜疊成同一行，地圖多出寬度 */
+  align-items: center;
+  gap: 14px;
 }
 .map-grade {
-  margin-top: 1.4em;
   font-size: 22px;
   font-weight: 700;
 }
@@ -386,7 +384,7 @@ button {
   color: var(--gold);
 }
 .map-head .board-open {
-  margin: 1em 0 0;
+  margin: 0;
   min-height: 0;
   padding: 14px 0;
   width: 44px;
@@ -616,13 +614,14 @@ button {
   flex-direction: column;
   flex-wrap: nowrap;
 }
+/* 框框和待選句的寬度跟著塊數走：排進去越多，框越寬 */
 .side-row > .order-box,
 .side-row > .order-answer {
-  flex: 1 1 0;
-  min-width: 0;
+  flex: 1 1 auto;
+  min-width: 72px;
 }
 .side-row > .cards-chips {
-  flex: 1 1 0;
+  flex: 1 1 auto;
   min-width: 0;
   justify-content: flex-start;
 }
@@ -826,6 +825,8 @@ button {
   background: var(--green-wash);
 }
 .order-empty {
+  writing-mode: vertical-rl;
+  letter-spacing: 0.1em;
   margin: auto;
   font-size: 22px;
   color: var(--ink-soft);
