@@ -1,4 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+// 直式經文框打開時捲到最右邊（第一行）。scrollLeft 塞超大值：新版瀏覽器會夾到 0（最右），舊版 Chrome 則是最大值（也是最右）
+const toFirstLine = (el: HTMLElement | null) => {
+  if (el) el.scrollLeft = el.scrollWidth;
+};
 import { BOOKS } from "./lib/books.ts";
 import { BOARD_ON, clock } from "./lib/board.ts";
 import { getPref, getStars, saveRun, setPref, totals } from "./lib/progress.ts";
@@ -67,15 +72,17 @@ function Home({ go }: { go: (s: Screen) => void }) {
   return (
     <main className="page">
       <div className="hero">
-        <div className="seal">讀經</div>
-        <h1 className="hero-title">讀經闖關</h1>
-        <p className="hero-sub">一段一關，背熟了拿星星</p>
+        <div className="hero-v">
+          <div className="seal">讀經</div>
+          <h1 className="hero-title">讀經闖關</h1>
+          <p className="hero-sub">一段一關，背熟了拿星星</p>
+        </div>
       </div>
-      <div className="stack">
+      <div className="shelf">
         {BOOKS.map((b) => (
           <button key={b.id} className="big-btn book-btn" onClick={() => go({ at: "grade", book: b })}>
             <span className="book-title">《{b.title}》</span>
-            <span className="book-meta">{b.stages.length} 關</span>
+            <span className="book-meta">{upright(`${b.stages.length} 關`)}</span>
           </button>
         ))}
       </div>
@@ -86,9 +93,14 @@ function Home({ go }: { go: (s: Screen) => void }) {
 function GradePick({ book, go }: { book: Classic; go: (s: Screen) => void }) {
   return (
     <>
-      <TopBar title={`《${book.title}》`} sub="選你的難度" onBack={() => go({ at: "home" })} />
+      <TopBar title="" onBack={() => go({ at: "home" })} />
       <main className="page">
-        <div className="stack">
+        {/* 書名直寫放最右邊，難度按鈕接在左邊 */}
+        <div className="shelf">
+          <div className="shelf-head">
+            <h1 className="shelf-title">《{book.title}》</h1>
+            <p className="shelf-sub">選你的難度</p>
+          </div>
           {GRADE_KEYS.map((g) => {
             const got = Object.values(getStars(book.id, g)).reduce((a, b) => a + b, 0);
             return (
@@ -96,9 +108,9 @@ function GradePick({ book, go }: { book: Classic; go: (s: Screen) => void }) {
                 <span className="grade-icon">{GRADES[g].icon}</span>
                 <span className="grade-text">
                   <span className="grade-label">{GRADES[g].label}</span>
-                  <span className="grade-meta">每關 {GRADES[g].count} 題</span>
+                  <span className="grade-meta">{upright(`每關 ${GRADES[g].count} 題`)}</span>
                 </span>
-                <span className="grade-got">★ {got}</span>
+                <span className="grade-got">★{upright(String(got))}</span>
               </button>
             );
           })}
@@ -108,7 +120,7 @@ function GradePick({ book, go }: { book: Classic; go: (s: Screen) => void }) {
   );
 }
 
-// 闖關地圖：一條左右彎的小路，關卡點沿路排
+// 闖關地圖：像展開一卷書，第 1 關在最右邊，小路上下彎著往左走，左右滑動
 function MapView({ book, grade, peek, go, zhuyin, toggle }: {
   book: Classic; grade: Grade; peek?: number; go: (s: Screen) => void; zhuyin: boolean; toggle: () => void;
 }) {
@@ -116,30 +128,56 @@ function MapView({ book, grade, peek, go, zhuyin, toggle }: {
   const n = book.stages.length;
   const unlocked = (i: number) => i === 0 || (rec[book.stages[i - 1].id] ?? 0) >= 1;
   const total = Object.values(rec).reduce((a, b) => a + b, 0);
-  const STEP = 108;
-  const H = STEP * (n - 1) + 120;
-  const xs = book.stages.map((_, i) => 50 + 30 * Math.sin((i * Math.PI) / 2.2));
-  const ys = book.stages.map((_, i) => 60 + i * STEP);
+  const STEP = window.innerWidth < 500 ? 74 : 96; // 手機窄，關卡排密一點才看得到多幾關
+  const W = STEP * (n - 1) + 120;
+  // 地圖高度跟著螢幕，小路上下彎的幅度也跟著放大；最低點要留位置給直寫的關卡名
+  const H = Math.max(380, Math.min(620, window.innerHeight - 180));
+  const xs = book.stages.map((_, i) => W - 60 - i * STEP);
+  const ys = book.stages.map((_, i) => 60 + ((H - 220) / 2) * (1 - Math.cos((i * Math.PI) / 2.2)));
   const path = xs.map((x, i) => (i ? "L" : "M") + x + " " + ys[i]).join(" ");
   const st = peek !== undefined ? book.stages[peek] : null;
   const [board, setBoard] = useState(false);
 
+  // 打開地圖時捲到要玩的那一關（剛按「下一關」的那關，否則最新解鎖的那關）
+  const scroller = useRef<HTMLDivElement>(null);
+  let focus = peek ?? 0;
+  if (peek === undefined) while (focus + 1 < n && unlocked(focus + 1)) focus++;
+  useEffect(() => {
+    const el = scroller.current;
+    if (el) el.scrollLeft = xs[focus] - el.clientWidth / 2;
+  }, [focus]);
+  // 電腦滑鼠滾輪預設是上下捲，這裡轉成左右走：往下滾＝往後面的關卡（往左）
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const wheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      e.preventDefault();
+      el.scrollLeft -= e.deltaY;
+    };
+    el.addEventListener("wheel", wheel, { passive: false });
+    return () => el.removeEventListener("wheel", wheel);
+  }, []);
+
   return (
     <>
-      <TopBar
-        title={`《${book.title}》${GRADES[grade].icon}${GRADES[grade].label}`}
-        sub={`★ ${total} / ${n * 3}`}
-        onBack={() => go({ at: "grade", book })}
-        zhuyin={zhuyin}
-        onZhuyin={toggle}
-      />
-      <main className="page">
-        {BOARD_ON && (
-          <button className="board-open" onClick={() => setBoard(true)}>🏆 排行榜</button>
-        )}
-        <div className="map" style={{ height: H }}>
-          <svg className="map-path" viewBox={`0 0 100 ${H}`} preserveAspectRatio="none">
-            <path d={path} vectorEffect="non-scaling-stroke" />
+      <TopBar title="" onBack={() => go({ at: "grade", book })} zhuyin={zhuyin} onZhuyin={toggle} />
+      <main className="page map-page">
+        {/* 書名、難度、星星直寫在最右邊，地圖接在左邊 */}
+        <div className="map-head">
+          <h1 className="shelf-title">《{book.title}》</h1>
+          <p className="map-grade">
+            {GRADES[grade].icon}{GRADES[grade].label}
+            <span className="map-total">★{upright(String(total))}</span>
+          </p>
+          {BOARD_ON && (
+            <button className="board-open" onClick={() => setBoard(true)}>🏆排行榜</button>
+          )}
+        </div>
+        <div className="map-scroll" ref={scroller}>
+        <div className="map" style={{ width: W, height: H }}>
+          <svg className="map-path" viewBox={`0 0 ${W} ${H}`}>
+            <path d={path} />
           </svg>
           {book.stages.map((s, i) => {
             const open = unlocked(i);
@@ -148,7 +186,7 @@ function MapView({ book, grade, peek, go, zhuyin, toggle }: {
               <button
                 key={s.id}
                 className={"node" + (open ? "" : " node-lock") + (got ? " node-done" : "")}
-                style={{ left: `${xs[i]}%`, top: ys[i] }}
+                style={{ left: xs[i], top: ys[i] }}
                 disabled={!open}
                 onClick={() => go({ at: "map", book, grade, peek: i })}
               >
@@ -159,10 +197,11 @@ function MapView({ book, grade, peek, go, zhuyin, toggle }: {
             );
           })}
         </div>
+        </div>
       </main>
       {st && peek !== undefined && (
         <div className="sheet-wrap" onClick={() => go({ at: "map", book, grade })}>
-          <section className="sheet" onClick={(e) => e.stopPropagation()}>
+          <section className="sheet sheet-scripture" onClick={(e) => e.stopPropagation()}>
             <div className="sheet-head">
               <div>
                 <div className="sheet-no">第 {peek + 1} 關</div>
@@ -171,16 +210,19 @@ function MapView({ book, grade, peek, go, zhuyin, toggle }: {
               </div>
               <Starline n={rec[st.id] ?? 0} />
             </div>
-            <div className="sheet-text">
-              {st.clauses.map((c, i) => (
-                <Zh key={i} piece={c} p={c.p} show={zhuyin} />
-              ))}
-            </div>
-            <div className="sheet-actions">
-              <button className="btn-ghost" onClick={() => go({ at: "map", book, grade })}>先不要</button>
-              <button className="btn-main" onClick={() => go({ at: "play", book, grade, stage: peek, round: Date.now() })}>
-                開始闖關
-              </button>
+            {/* 經文在右、按鈕在左，跟直式書本一樣讀完往左走 */}
+            <div className="sheet-body">
+              <div className="sheet-text flow" key={peek} ref={toFirstLine}>
+                {st.clauses.map((c, i) => (
+                  <Zh key={i} piece={c} p={c.p} show={zhuyin} />
+                ))}
+              </div>
+              <div className="sheet-actions">
+                <button className="btn-main" onClick={() => go({ at: "play", book, grade, stage: peek, round: Date.now() })}>
+                  開始闖關
+                </button>
+                <button className="btn-ghost" onClick={() => go({ at: "map", book, grade })}>先不要</button>
+              </div>
             </div>
           </section>
         </div>
@@ -237,6 +279,11 @@ function Play({ book, grade, stage, round, go, zhuyin, toggle, sound, toggleSoun
   );
 }
 
+// 直式裡的數字一組一組轉正，中文字照常直排（「1分05秒」→ 1、05 各佔一格）
+function upright(text: string) {
+  return text.split(/(\d+)/).map((t, i) => (i % 2 ? <span key={i} className="tcy">{t}</span> : t));
+}
+
 function Result({ book, grade, stage, right, total, ms, record, go }: {
   book: Classic; grade: Grade; stage: number; right: number; total: number; ms: number; record: boolean; go: (s: Screen) => void;
 }) {
@@ -245,29 +292,34 @@ function Result({ book, grade, stage, right, total, ms, record, go }: {
   const sum = BOARD_ON ? totals(book.id, grade, book.stages.map((s) => s.id)) : null;
   return (
     <main className="page result">
+      {/* 直式：由右往左讀，標題→星星→成績 */}
       <div className="result-card">
         <div className="result-emoji">{n === 3 ? "🏆" : n > 0 ? "🎉" : "💪"}</div>
         <h2 className="result-title">{n > 0 ? "過關了！" : "差一點點，再試一次"}</h2>
         <Starline n={n} size="stars-lg" />
         <p className="result-score">
-          答對 {right} / {total} 題 ・ 用時 {clock(ms)}
+          答對 <span className="tcy">{right}</span> 題（共 <span className="tcy">{total}</span> 題）
+          <br />
+          用時 {upright(clock(ms))}
           {record && <span className="result-record">這關新紀錄！</span>}
         </p>
-        {sum && n > 0 && (
-          <SubmitPanel book={book.id} grade={grade} stars={sum.stars} ms={sum.ms} stages={book.stages.length} />
-        )}
-        <div className="stack">
+      </div>
+      {/* 按鈕放卡片下面，字直寫、第一顆在最右邊；放卡片裡手機會太寬 */}
+      <div className="result-btns">
           {n > 0 && hasNext && (
             <button className="btn-main" onClick={() => go({ at: "map", book, grade, peek: stage + 1 })}>
-              下一關 ›
+              下一關
             </button>
           )}
           <button className={n > 0 ? "btn-ghost" : "btn-main"} onClick={() => go({ at: "play", book, grade, stage, round: Date.now() })}>
             再玩一次
           </button>
           <button className="btn-ghost" onClick={() => go({ at: "map", book, grade })}>回地圖</button>
-        </div>
       </div>
+      {/* 輸入名字的表單維持橫式，直式輸入框不好打字 */}
+      {sum && n > 0 && (
+        <SubmitPanel book={book.id} grade={grade} stars={sum.stars} ms={sum.ms} stages={book.stages.length} />
+      )}
     </main>
   );
 }

@@ -43,7 +43,7 @@ function useFinish(onDone: (ok: boolean) => void, sound: boolean) {
 type Props<Q> = { q: Q; show: boolean; sound: boolean; onDone: (ok: boolean) => void };
 
 function Verdict({ ok }: { ok: boolean | null }) {
-  if (ok === null) return <div className="h-14" />;
+  if (ok === null) return <div className="verdict-space" />;
   return (
     <div className={"verdict " + (ok ? "verdict-ok" : "verdict-no")}>
       {ok ? "答對了！" : "再記一次正確答案"}
@@ -62,8 +62,9 @@ function NextView({ q, show, sound, onDone }: Props<NextQ>) {
   };
   return (
     <>
-      <p className="q-hint">下一句是什麼？</p>
-      <div className="q-card">
+      <p className="q-hint">下一句是什麼？從左邊選</p>
+      <div className="side-row side-row-next">
+      <div className="q-card flow">
         {q.prompt.map((p, i) => (
           <Zh key={i} piece={p} show={show} p={p.p} />
         ))}
@@ -82,6 +83,7 @@ function NextView({ q, show, sound, onDone }: Props<NextQ>) {
         })}
       </div>
       <Verdict ok={ok} />
+      </div>
     </>
   );
 }
@@ -105,8 +107,9 @@ function FillView({ q, show, sound, onDone }: Props<FillQ>) {
   };
   return (
     <>
-      <p className="q-hint">點下面的字，把空格填起來</p>
-      <div className="q-card">
+      <p className="q-hint">點左邊的字，把空格填起來</p>
+      <div className="side-row">
+      <div className="q-card flow">
         {q.before && (
           <span className="q-before">
             <Zh piece={q.before} p={q.before.p} show={show} />
@@ -126,7 +129,7 @@ function FillView({ q, show, sound, onDone }: Props<FillQ>) {
           })}
         </span>
       </div>
-      <div className="cards">
+      <div className="cards cards-col">
         {!over &&
           q.options[step].map((o, k) => (
             <button key={step + "-" + k} className="card" onClick={() => choose(k)}>
@@ -140,6 +143,7 @@ function FillView({ q, show, sound, onDone }: Props<FillQ>) {
         )}
       </div>
       <Verdict ok={ok} />
+      </div>
     </>
   );
 }
@@ -163,9 +167,10 @@ function OrderView({ q, show, sound, onDone }: Props<OrderQ>) {
   const undo = (i: number) => ok === null && setPlaced(placed.filter((_, k) => k !== i));
   return (
     <>
-      <p className="q-hint">照經文的順序，一塊一塊點</p>
+      <p className="q-hint">照經文的順序，點左邊的句子排到右邊框裡</p>
+      <div className="side-row">
       <div className={"order-box" + (ok === false ? " order-bad" : "")}>
-        {placed.length === 0 && <span className="order-empty">從第一句開始點 ↓</span>}
+        {placed.length === 0 && <span className="order-empty">從第一句開始點</span>}
         {placed.map((s, i) => (
           <button key={s} className={"chip chip-placed" + (ok ? " opt-right" : "")} onClick={() => undo(i)}>
             <span className="chip-no">{i + 1}</span>
@@ -184,7 +189,7 @@ function OrderView({ q, show, sound, onDone }: Props<OrderQ>) {
         </div>
       )}
       {ok === null && (
-        <div className="cards">
+        <div className="cards cards-chips">
           {q.shuffled.map((k, s) =>
             placed.includes(s) ? null : (
               <button key={s} className="chip" onClick={() => tap(s)}>
@@ -195,6 +200,7 @@ function OrderView({ q, show, sound, onDone }: Props<OrderQ>) {
         </div>
       )}
       <Verdict ok={ok} />
+      </div>
     </>
   );
 }

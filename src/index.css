@@ -28,6 +28,8 @@
 
 html,
 body {
+  overflow-x: hidden; /* 舊版 Chrome 不認 clip，先給 hidden 墊底 */
+  overflow-x: clip;
   background: var(--paper);
   color: var(--ink);
   font-family: "LXGW WenKai TC", "BiauKai", "DFKai-SB", "標楷體", "Kaiti TC", serif;
@@ -53,16 +55,39 @@ button {
 }
 
 /* ---------- 字＋注音 ---------- */
+/* 經文直式：由上往下排、換行由右往左（vertical-rl）；每個字＋注音是一個橫的小格 */
 .zh {
+  writing-mode: vertical-rl;
   display: inline-flex;
   flex-wrap: wrap;
-  align-items: center;
-  row-gap: 6px;
+  align-items: flex-start;
+  row-gap: 8px; /* 直式時是行與行（左右）的間距 */
 }
 .ch {
+  writing-mode: horizontal-tb;
   display: inline-flex;
   align-items: center;
+  height: calc(var(--han) * 1.2);
   line-height: 1;
+}
+.ch-zy {
+  height: calc(var(--han) * 1.62); /* 注音最多四個符號疊起來，格子要夠高 */
+}
+/* 標點直排：讓字型換成直式字形（冒號轉直、逗號句號靠右上） */
+.ch-p .han {
+  writing-mode: vertical-rl;
+  height: calc(var(--han) * 1.15);
+}
+/* 一整段經文連續排，句子跟句子之間不另起一行 */
+.flow {
+  writing-mode: vertical-rl;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  row-gap: 8px;
+}
+.flow .zh {
+  display: contents;
 }
 .han {
   font-size: var(--han);
@@ -72,12 +97,12 @@ button {
   display: inline-flex;
   align-items: center;
   font-size: max(11px, calc(var(--han) * 0.38));
-  min-width: 1.5em;
+  width: 2em; /* 固定寬，直式時每一行的字才會對齊 */
   margin-left: 1px;
   color: var(--ink-soft);
 }
 .zy-empty {
-  width: 1.5em;
+  width: 2em;
 }
 .zy-col {
   display: inline-flex;
@@ -174,8 +199,16 @@ button {
 
 /* ---------- 首頁 ---------- */
 .hero {
-  text-align: center;
-  padding: 40px 0 28px;
+  display: flex;
+  justify-content: center;
+  padding: 32px 0 28px;
+}
+.hero-v {
+  writing-mode: vertical-rl;
+  display: flex;
+  flex-direction: column; /* 直式裡 column＝由右往左一行一行 */
+  align-items: flex-start;
+  gap: 18px;
 }
 .seal {
   display: inline-grid;
@@ -193,13 +226,12 @@ button {
   box-shadow: 0 6px 0 var(--red-deep);
 }
 .hero-title {
-  margin-top: 22px;
   font-size: 48px;
   font-weight: 700;
   letter-spacing: 6px;
 }
 .hero-sub {
-  margin-top: 6px;
+  margin-top: 26px;
   font-size: 22px;
   color: var(--ink-soft);
 }
@@ -252,6 +284,65 @@ button {
   color: var(--gold);
   font-weight: 700;
 }
+/* 選書、選難度：直式大按鈕由右往左並排（第一個在最右邊） */
+.shelf {
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: center;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+.shelf .big-btn {
+  writing-mode: vertical-rl;
+  width: auto;
+  min-height: 0;
+  min-width: 96px;
+  padding: 22px 16px;
+  flex-direction: row; /* 直式裡 row＝由上往下 */
+  align-items: center;
+  gap: 14px;
+}
+@media (max-width: 480px) {
+  .shelf { gap: 10px; }
+  .shelf .big-btn { min-width: 0; padding: 18px 10px; }
+  .shelf .grade-icon { font-size: 32px; }
+  .shelf .grade-label { font-size: 28px; }
+  .shelf-title { font-size: 34px; }
+  .shelf-sub { font-size: 18px; }
+}
+.shelf-head {
+  writing-mode: vertical-rl;
+  display: flex;
+  flex-direction: column; /* 直式裡 column＝由右往左 */
+  align-items: flex-start;
+  gap: 8px;
+  margin-left: 6px;
+}
+.shelf-title {
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.shelf-sub {
+  margin-top: 1.2em;
+  font-size: 22px;
+  color: var(--ink-soft);
+  letter-spacing: 0.1em;
+}
+.shelf .book-title {
+  flex: none;
+  letter-spacing: 0.08em;
+}
+.shelf .grade-text {
+  flex: none;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+}
+.shelf .grade-label {
+  letter-spacing: 0.1em;
+}
 .grade-k { border-color: var(--k); box-shadow: 0 5px 0 var(--k); }
 .grade-low { border-color: var(--low); box-shadow: 0 5px 0 var(--low); }
 .grade-high { border-color: var(--high); box-shadow: 0 5px 0 var(--high); }
@@ -269,16 +360,62 @@ button {
 .star-off { color: var(--gold-off); }
 
 /* ---------- 地圖 ---------- */
+/* 地圖頁：右邊直寫書名，左邊是可以左右滑的地圖 */
+.map-page {
+  max-width: none;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: flex-start;
+  gap: 8px;
+}
+.map-head {
+  flex: none;
+  writing-mode: vertical-rl;
+  display: flex;
+  flex-direction: column; /* 直式裡 column＝由右往左 */
+  align-items: flex-start;
+  gap: 10px;
+}
+.map-grade {
+  margin-top: 1.4em;
+  font-size: 22px;
+  font-weight: 700;
+}
+.map-total {
+  margin-top: 0.6em;
+  color: var(--gold);
+}
+.map-head .board-open {
+  margin: 1em 0 0;
+  min-height: 0;
+  padding: 14px 0;
+  width: 44px;
+  font-size: 18px;
+  border-radius: 26px;
+}
+@media (max-width: 480px) {
+  .map-head .shelf-title { font-size: 30px; }
+  .map-grade { font-size: 18px; }
+  .map-head .board-open { width: 38px; font-size: 16px; }
+  .map-page { gap: 4px; }
+}
+.map-scroll {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+}
 .map {
   position: relative;
-  max-width: 520px;
-  margin: 8px auto 0;
+  margin: 8px 0 0 auto; /* 寬螢幕放得下整張地圖時靠右，第 1 關貼著書名 */
 }
 .map-path {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+  overflow: visible;
 }
 .map-path path {
   fill: none;
@@ -295,7 +432,7 @@ button {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  width: 140px;
+  width: 80px;
 }
 .node-dot {
   width: 68px;
@@ -323,7 +460,10 @@ button {
   font-size: 26px;
 }
 .node-name {
-  margin-top: 6px;
+  writing-mode: vertical-rl;
+  letter-spacing: 0.05em;
+  margin-top: 8px;
+  padding: 4px 0;
   font-size: 18px;
   font-weight: 700;
   background: var(--paper);
@@ -349,6 +489,7 @@ button {
   width: 100%;
   max-width: 760px;
   max-height: 88vh;
+  max-height: 88dvh; /* 手機 Chrome 的網址列會吃掉 vh，按鈕會被擠到畫面外 */
   display: flex;
   flex-direction: column;
   background: var(--card);
@@ -359,6 +500,26 @@ button {
 @keyframes up {
   from { transform: translateY(40px); opacity: 0; }
 }
+/* 電腦螢幕：經文卡撐滿整個畫面，直式經文一次看得到最多行；手機維持底部滑出、經文框左右滑 */
+@media (min-width: 820px) {
+  .sheet-wrap {
+    align-items: stretch;
+    padding: 2vh 2vw;
+    padding: 2dvh 2vw;
+  }
+  .sheet-scripture {
+    max-width: none;
+    max-height: none;
+    border-radius: 28px;
+  }
+  .sheet-scripture .sheet-body {
+    flex: 1 1 0;
+    height: auto;
+  }
+  .sheet-scripture .sheet-text {
+    --han: clamp(28px, 3.6vh, 44px);
+  }
+}
 .sheet-head {
   display: flex;
   justify-content: space-between;
@@ -368,21 +529,102 @@ button {
 .sheet-no { font-size: 18px; color: var(--red); font-weight: 700; }
 .sheet-title { font-size: 32px; font-weight: 700; }
 .sheet-theme { font-size: 20px; color: var(--ink-soft); }
+/* 經文框在右、按鈕直排在左 */
+.sheet-body {
+  display: flex;
+  flex-direction: row-reverse;
+  gap: 12px;
+  margin-top: 14px;
+  /* 畫面矮時先縮這一塊 */
+  flex: 0 1 auto;
+  height: min(58vh, 640px); /* 舊版瀏覽器不認 dvh 會整行作廢，先給 vh 墊底 */
+  height: min(58dvh, 640px);
+  min-height: 220px;
+}
 .sheet-text {
   --han: clamp(24px, 5vw, 34px);
-  margin: 14px 0;
   padding: 14px;
-  overflow-y: auto;
+  flex: 1 1 0;
+  min-width: 0;
+  contain: size; /* 直式內容再寬也不能把整個版面撐開 */
+  overflow-x: auto; /* 直式太長時左右滑，一開始停在最右邊（第一行） */
+  overflow-y: hidden;
   background: var(--paper);
   border-radius: 16px;
-  display: flex;
-  flex-wrap: wrap;
-  row-gap: 8px;
 }
 .sheet-actions {
-  display: grid;
-  grid-template-columns: 1fr 2fr;
+  flex: none;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
+  padding-bottom: 5px; /* 留給按鈕陰影 */
+}
+.sheet-actions button {
+  writing-mode: vertical-rl;
+  letter-spacing: 0.15em;
+  min-height: 0;
+  width: 64px;
+  padding: 12px 0;
+}
+.sheet-actions .btn-main {
+  flex: 2 1 auto;
+}
+.sheet-actions .btn-ghost {
+  flex: 1 1 auto;
+  font-size: 24px;
+}
+
+/* 題目在右、待選的在左 */
+.side-row {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: stretch; /* 左右兩塊等高，框框才看得出是一格 */
+  justify-content: center;
+  gap: 14px;
+}
+.side-row > .q-card {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+/* 接下一句：選項緊貼在題目左邊，第一個選項離題目最近 */
+.side-row-next {
+  align-items: flex-start;
+  gap: 10px;
+}
+.side-row-next > .q-card {
+  flex: none; /* 題目卡不被擠扁，手機太窄時讓選項自己換排 */
+  max-width: 45%;
+}
+.side-row-next > .opts {
+  flex: 0 1 auto;
+  min-width: 0;
+  justify-content: flex-start;
+  gap: 8px;
+}
+@media (max-width: 480px) {
+  .opt,
+  .chip {
+    min-width: 0;
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+  .side-row {
+    gap: 8px;
+  }
+}
+.cards-col {
+  flex-direction: column;
+  flex-wrap: nowrap;
+}
+.side-row > .order-box,
+.side-row > .order-answer {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.side-row > .cards-chips {
+  flex: 1 1 0;
+  min-width: 0;
+  justify-content: flex-start;
 }
 
 .btn-main,
@@ -424,6 +666,12 @@ button {
   flex-direction: column;
   gap: 16px;
 }
+/* 電腦螢幕：遊戲區放寬，高階排序 6 塊句子左右兩邊都能一排放完，不會掉到下面 */
+@media (min-width: 820px) {
+  .play {
+    max-width: 1400px;
+  }
+}
 .q-hint {
   font-size: 22px;
   color: var(--ink-soft);
@@ -431,45 +679,51 @@ button {
   margin-top: 4px;
 }
 .q-card {
+  --han: clamp(24px, 5.4vw, 40px);
   background: var(--card);
   border: 3px solid var(--line);
   border-radius: 24px;
-  padding: 16px 14px;
-  min-height: 100px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  row-gap: 8px;
+  padding: 14px;
+  max-height: calc(var(--han) * 1.62 * 8 + 28px); /* 超過八個字就換到左邊一行 */
+  align-self: center;
+  max-width: 100%;
+  overflow-x: auto;
 }
 .q-before {
+  display: contents;
+}
+.q-before .ch {
   opacity: 0.5;
-  margin-right: 4px;
 }
 .q-blank-line {
   display: inline-block;
-  width: 2.4em;
-  height: 0;
-  margin-left: 6px;
-  border-bottom: 4px dashed var(--red);
+  width: 0;
+  height: 2.4em;
+  margin-top: 6px;
+  border-left: 4px dashed var(--red);
   font-size: var(--han);
   align-self: center;
 }
+/* 選項是一條一條直的，第一個在最右邊 */
 .opts {
+  --han: clamp(24px, 5.4vw, 40px);
   display: flex;
-  flex-direction: column;
+  flex-direction: row-reverse;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
   gap: 12px;
 }
 .opt {
-  min-height: 68px;
+  min-width: 60px;
   border-radius: 20px;
   background: var(--card);
   border: 3px solid var(--line);
   box-shadow: 0 5px 0 var(--line);
-  padding: 10px 16px;
+  padding: 14px 8px;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
 }
 .opt:active:not(:disabled) {
   transform: translateY(4px);
@@ -505,7 +759,7 @@ button {
   min-height: calc(var(--han) * 1.3);
   justify-content: center;
   align-items: center;
-  margin: 0 3px;
+  margin: 3px 0;
   border: 3px dashed var(--line);
   border-radius: 10px;
   background: var(--paper);
@@ -549,12 +803,16 @@ button {
 /* 排順序 */
 .order-box,
 .order-answer {
+  --han: clamp(24px, 5.4vw, 40px);
   min-height: 110px;
   border: 3px dashed var(--line);
   border-radius: 24px;
   padding: 12px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row-reverse; /* 第一塊在最右邊，跟讀的順序一樣 */
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: flex-start;
   gap: 10px;
   background: var(--card);
 }
@@ -573,22 +831,24 @@ button {
   color: var(--ink-soft);
 }
 .chip {
-  min-height: 68px;
+  --han: clamp(24px, 5.4vw, 40px);
+  min-width: 60px;
   border-radius: 18px;
   background: var(--card);
   border: 3px solid var(--line);
   box-shadow: 0 4px 0 var(--line);
-  padding: 8px 14px;
+  padding: 10px 8px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
+  justify-content: flex-start;
+  gap: 8px;
 }
-.cards .chip {
-  flex: 1 1 auto;
+.cards-chips {
+  flex-direction: row-reverse;
+  align-items: flex-start;
 }
 .chip-placed {
-  justify-content: flex-start;
   background: var(--paper);
 }
 .chip-no {
@@ -607,13 +867,20 @@ button {
   box-shadow: none;
 }
 
+/* 答對／答錯：直寫在最左邊（讀完題目、選項之後） */
 .verdict {
-  height: 56px;
-  display: grid;
-  place-items: center;
+  writing-mode: vertical-rl;
+  flex: none;
+  width: 44px;
+  align-self: flex-start;
   font-size: 30px;
   font-weight: 700;
+  letter-spacing: 0.1em;
   animation: pop 0.35s;
+}
+.verdict-space {
+  flex: none;
+  width: 44px;
 }
 .verdict-ok { color: var(--green); }
 .verdict-ok::before { content: "✔ "; }
@@ -624,19 +891,46 @@ button {
   min-height: 100vh;
   display: grid;
   place-items: center;
+  align-content: center;
+  gap: 20px;
 }
+/* 過關畫面直式：一行一行由右往左 */
 .result-card {
-  width: 100%;
-  max-width: 460px;
-  text-align: center;
+  writing-mode: vertical-rl;
+  display: flex;
+  flex-direction: column; /* 直式裡 column＝由右往左一行一行 */
+  align-items: flex-start;
+  gap: 14px;
+  max-width: 100%;
   background: var(--card);
   border: 3px solid var(--line);
   border-radius: 32px;
-  padding: 32px 20px;
+  padding: 24px 20px;
 }
-.result-emoji { font-size: 72px; }
-.result-title { font-size: 36px; font-weight: 700; margin: 8px 0 12px; }
-.result-score { font-size: 26px; color: var(--ink-soft); margin: 12px 0 24px; }
+.result-emoji { font-size: 60px; line-height: 1; }
+.result-title { font-size: 36px; font-weight: 700; letter-spacing: 0.1em; }
+.result-card .stars-lg { font-size: 48px; gap: 2px; }
+.result-score { font-size: 24px; color: var(--ink-soft); line-height: 1.6; }
+/* 直式裡的數字轉正（不躺著） */
+.tcy { text-combine-upright: all; }
+.result-btns {
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 14px;
+}
+.result-btns button {
+  writing-mode: vertical-rl;
+  width: 64px;
+  min-height: 0;
+  padding: 18px 0;
+  letter-spacing: 0.15em;
+}
+.result .board-panel {
+  width: 100%;
+  max-width: 460px;
+}
 
 .result-record {
   display: block;

@@ -1,7 +1,9 @@
 // 字＋注音。注音直排在字的右側、聲調在注音右邊、輕聲點在最上面，跟課本一樣。
+// 經文整句直式（由上往下、換行由右往左），每個字＋注音仍是一個橫的小格。
 import type { Piece } from "../lib/quiz.ts";
 
 const TONES = "ˊˇˋ";
+const PUNCT = /[，。、；：？！「」『』（）]/;
 
 export function Bopomofo({ z }: { z: string }) {
   let body = z;
@@ -30,7 +32,7 @@ export function Bopomofo({ z }: { z: string }) {
 
 export function Char({ ch, z, show }: { ch: string; z?: string; show: boolean }) {
   return (
-    <span className="ch">
+    <span className={"ch" + (show ? " ch-zy" : "") + (PUNCT.test(ch) ? " ch-p" : "")}>
       <span className="han">{ch}</span>
       {show && (z ? <Bopomofo z={z} /> : <span className="zy zy-empty" />)}
     </span>
